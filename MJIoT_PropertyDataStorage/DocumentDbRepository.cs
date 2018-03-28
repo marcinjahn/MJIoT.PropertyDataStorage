@@ -24,7 +24,7 @@ namespace MJIoT.Storage.PropertyValues
         public async Task<string> GetPropertyValueAsync(int deviceId, string propertyName)
         {
             var result = await GetPropertyDocumentAsync(deviceId, propertyName);
-            return result.PropertyValue;
+            return result?.PropertyValue;
         }
 
         public async Task SetPropertyValueAsync(int deviceId, string propertyName, string propertyValue)
