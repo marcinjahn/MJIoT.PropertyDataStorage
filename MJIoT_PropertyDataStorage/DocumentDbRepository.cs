@@ -21,30 +21,46 @@ namespace MJIoT.Storage.PropertyValues
             _client = new DocumentClient(new Uri(_endpoint), _primaryKey);
         }
 
+
+        //NIE DZIAŁA?
         public async Task<string> GetPropertyValueAsync(int deviceId, string propertyName)
         {
-            var result = await GetPropertyDocumentAsync(deviceId, propertyName);
+            //var result = await GetPropertyDocumentAsync(deviceId, propertyName);
+            //return result?.PropertyValue;
+
+            return await Task.Run(() => GetPropertyValue(deviceId, propertyName));
+        }
+
+        public string GetPropertyValue(int deviceId, string propertyName)
+        {
+            var result = GetPropertyDocument(deviceId, propertyName);
             return result?.PropertyValue;
         }
 
         public async Task SetPropertyValueAsync(int deviceId, string propertyName, string propertyValue)
         {
             var document = await GetPropertyDocumentAsync(deviceId, propertyName);
-            document.PropertyValue = propertyValue;
+            if (document == null)
+                await CreateNewDocument(deviceId, propertyName, propertyValue);
+            else
+                await ReplaceDocument(propertyValue, document);
+        }
 
+        private async Task ReplaceDocument(string propertyValue, PropertyDataMessage document)
+        {
+            document.PropertyValue = propertyValue;
             await _client.ReplaceDocumentAsync(UriFactory.CreateDocumentUri(_dataBase, _collection, document.Id), document);
         }
 
-        private async Task<PropertyDataMessage> GetPropertyDocumentAsync(int deviceId, string propertyName)
+        private async Task CreateNewDocument(int deviceId, string propertyName, string propertyValue)
         {
-            FeedOptions queryOptions = new FeedOptions { MaxItemCount = 1 };
-            var result = await _client.CreateDocumentQuery<PropertyDataMessage>(
-                    UriFactory.CreateDocumentCollectionUri(_dataBase, _collection), queryOptions)
-                .Where(d => d.DeviceId == deviceId && d.PropertyName == propertyName)
-                .OrderByDescending(n => n.Timestamp)
-                .ToListAsync();
-
-            return result.FirstOrDefault();
+            await _client.CreateDocumentAsync(UriFactory.CreateDocumentCollectionUri(_dataBase, _collection), new PropertyDataMessage
+            {
+                DeviceId = deviceId,
+                PropertyName = propertyName,
+                PropertyValue = propertyValue,
+                Timestamp = DateTime.Now.ToString()
+            });
         }
 
         private PropertyDataMessage GetPropertyDocument(int deviceId, string propertyName)
@@ -55,6 +71,19 @@ namespace MJIoT.Storage.PropertyValues
                 .Where(d => d.DeviceId == deviceId && d.PropertyName == propertyName)
                 .OrderByDescending(n => n.Timestamp)
                 .ToList();
+
+            return result.FirstOrDefault();
+        }
+
+        //NIE DZIAŁA?
+        private async Task<PropertyDataMessage> GetPropertyDocumentAsync(int deviceId, string propertyName)
+        {
+            FeedOptions queryOptions = new FeedOptions { MaxItemCount = 1 };
+            var result = await _client.CreateDocumentQuery<PropertyDataMessage>(
+                    UriFactory.CreateDocumentCollectionUri(_dataBase, _collection), queryOptions)
+                .Where(d => d.DeviceId == deviceId && d.PropertyName == propertyName)
+                .OrderByDescending(n => n.Timestamp)
+                .ToListAsync();
 
             return result.FirstOrDefault();
         }
